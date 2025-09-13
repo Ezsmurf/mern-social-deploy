@@ -1,0 +1,72 @@
+services:
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    restart: unless-stopped
+    environment: # Creates the application on startup
+      MONGO_INITDB_DATABASE: ${MONGODB_DB}
+    volumes: # Persists Mongo data
+      - mongodata:/data/db
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: mongo-express
+    depends_on: [mongo]
+    environment: # Connect ME to Mongo
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/${MONGODB_DB}
+      ME_CONFIG_BASICAUTH_USERNAME: ${ME_USER}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${ME_PASS}
+      ME_CONFIG_SITE_BASEURL: /db
+    networks: [backend]
+    expose: ["8081"]
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/server.Dockerfile
+    container_name: server
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000 # Listen on PORT 4000
+      MONGODB_URI: mongodb://mongo:27017/${MONGODB_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_OPTIONS: --experimental-specifier-resolution=node
+    networks: [backend]
+    expose: ["4000"]
+
+  client:
+    build:
+      context: .
+      dockerfile: docker/client.Dockerfile
+    container_name: client
+    depends_on: [server]
+    networks: [frontend, backend] # Proxy (frontend) + API calls to server (backend)
+    expose: ["80"]
+
+  proxy:
+    image: nginx:1.25-alpine
+    container_name: proxy
+    depends_on: [client, server, mongo-express]
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro # Nginx reverse proxy
+      - ./certs:/etc/nginx/certs:ro # TLS certs
+    ports:
+      - "80:80"
+      - "443:443"
+    networks: [frontend, backend]
+
+volumes:
+  mongodata:
+
+networks:
+  frontend: {}
+  backend: {}

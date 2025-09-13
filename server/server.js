@@ -1,17 +1,38 @@
-import config from './../config/config'
-import app from './express'
-import mongoose from 'mongoose'
-
-// Connection URL
-mongoose.Promise = global.Promise
-mongoose.connect(config.mongoUri, { useNewUrlParser: true, useCreateIndex: true, useUnifiedTopology: true, useFindAndModify: false })
-mongoose.connection.on('error', () => {
-  throw new Error(`unable to connect to database: ${config.mongoUri}`)
+// Enable JSX/ESNext
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+require('@babel/register')({
+  presets: ['@babel/preset-env', '@babel/preset-react'],
+  extensions: ['.js', '.jsx'],
+  ignore: [/node_modules/],
 })
 
-app.listen(config.port, (err) => {
+import mongoose from 'mongoose'
+import dotenv from 'dotenv'
+import app from './express.js'
+
+dotenv.config()
+
+// MongoDB connection
+mongoose.Promise = global.Promise
+const mongoUri = process.env.MONGO_URI || `mongodb://mongo:27017/${process.env.MONGODB_DB || 'mernsocial'}`
+
+mongoose.connect(mongoUri, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+  .then(() => {
+    console.log(' Connected to MongoDB at', mongoUri)
+  })
+  .catch((err) => {
+    console.error(' MongoDB connection error:', err)
+  })
+
+// Start server
+const PORT = process.env.PORT || 3000
+app.listen(PORT, (err) => {
   if (err) {
-    console.log(err)
+    console.error(' Failed to start server:', err)
   }
-  console.info('Server started on port %s.', config.port)
+  console.info(` Server running at http://localhost:${PORT}/`)
 })

@@ -1,181 +1,102 @@
+// server/controllers/user.controller.js
 import User from '../models/user.model'
-import extend from 'lodash/extend'
-import errorHandler from './../helpers/dbErrorHandler'
-import formidable from 'formidable'
-import fs from 'fs'
-import profileImage from './../../client/assets/images/profile-pic.png'
+import extend from 'lodash/extend.js'
 
-const create = async (req, res) => {
-  const user = new User(req.body)
+/**
+ * Load user by ID and attach to req.profile
+ */
+const userByID = async (req, res, next, id) => {
   try {
-    await user.save()
-    return res.status(200).json({
-      message: "Successfully signed up!"
-    })
+    const user = await User.findById(id)
+    if (!user) return res.status(400).json({ error: 'User not found' })
+    req.profile = user
+    next()
   } catch (err) {
-    return res.status(400).json({
-      error: errorHandler.getErrorMessage(err)
-    })
+    return res.status(400).json({ error: 'Could not retrieve user' })
   }
 }
 
 /**
- * Load user and append to req.
+ * Create user
  */
-const userByID = async (req, res, next, id) => {
+const create = async (req, res) => {
+  const user = new User(req.body)
   try {
-    let user = await User.findById(id).populate('following', '_id name')
-    .populate('followers', '_id name')
-    .exec()
-    if (!user)
-      return res.status('400').json({
-        error: "User not found"
-      })
-    req.profile = user
-    next()
+    await user.save()
+    return res.status(200).json({ message: 'Successfully signed up!' })
   } catch (err) {
-    return res.status('400').json({
-      error: "Could not retrieve user"
-    })
+    return res.status(400).json({ error: 'Could not create user' })
   }
 }
 
-const read = (req, res) => {
-  req.profile.hashed_password = undefined
-  req.profile.salt = undefined
-  return res.json(req.profile)
-}
-
-const list = async (req, res) => {
+/**
+ * List users (safe fields)
+ */
+const list = async (_req, res) => {
   try {
-    let users = await User.find().select('name email updated created')
+    const users = await User.find().select('name email updated created')
     res.json(users)
-  } catch (err) {
-    return res.status(400).json({
-      error: errorHandler.getErrorMessage(err)
-    })
+  } catch {
+    return res.status(400).json({ error: 'Could not list users' })
   }
 }
 
-const update = (req, res) => {
-  let form = new formidable.IncomingForm()
-  form.keepExtensions = true
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      return res.status(400).json({
-        error: "Photo could not be uploaded"
-      })
-    }
-    let user = req.profile
-    user = extend(user, fields)
-    user.updated = Date.now()
-    if(files.photo){
-      user.photo.data = fs.readFileSync(files.photo.path)
-      user.photo.contentType = files.photo.type
-    }
-    try {
-      await user.save()
-      user.hashed_password = undefined
-      user.salt = undefined
-      res.json(user)
-    } catch (err) {
-      return res.status(400).json({
-        error: errorHandler.getErrorMessage(err)
-      })
-    }
-  })
+/**
+ * Read single user (sanitized)
+ */
+const read = (req, res) => {
+  const user = req.profile.toObject()
+  delete user.hashed_password
+  delete user.salt
+  res.json(user)
 }
 
+/**
+ * Update user
+ */
+const update = async (req, res) => {
+  try {
+    let user = req.profile
+    user = extend(user, req.body)
+    user.updated = Date.now()
+    await user.save()
+    const sanitized = user.toObject()
+    delete sanitized.hashed_password
+    delete sanitized.salt
+    res.json(sanitized)
+  } catch {
+    return res.status(400).json({ error: 'Could not update user' })
+  }
+}
+
+/**
+ * Remove user
+ */
 const remove = async (req, res) => {
   try {
-    let user = req.profile
-    let deletedUser = await user.remove()
-    deletedUser.hashed_password = undefined
-    deletedUser.salt = undefined
-    res.json(deletedUser)
-  } catch (err) {
-    return res.status(400).json({
-      error: errorHandler.getErrorMessage(err)
-    })
+    const user = req.profile
+    const deletedUser = await user.deleteOne()
+    const sanitized = deletedUser.toObject()
+    delete sanitized.hashed_password
+    delete sanitized.salt
+    res.json(sanitized)
+  } catch {
+    return res.status(400).json({ error: 'Could not delete user' })
   }
 }
 
-const photo = (req, res, next) => {
-  if(req.profile.photo.data){
-    res.set("Content-Type", req.profile.photo.contentType)
-    return res.send(req.profile.photo.data)
-  }
-  next()
-}
-
-const defaultPhoto = (req, res) => {
-  return res.sendFile(process.cwd()+profileImage)
-}
-
-const addFollowing = async (req, res, next) => {
-  try{
-    await User.findByIdAndUpdate(req.body.userId, {$push: {following: req.body.followId}}) 
-    next()
-  }catch(err){
-    return res.status(400).json({
-      error: errorHandler.getErrorMessage(err)
-    })
-  }
-}
-
-const addFollower = async (req, res) => {
-  try{
-    let result = await User.findByIdAndUpdate(req.body.followId, {$push: {followers: req.body.userId}}, {new: true})
-                            .populate('following', '_id name')
-                            .populate('followers', '_id name')
-                            .exec()
-      result.hashed_password = undefined
-      result.salt = undefined
-      res.json(result)
-    }catch(err) {
-      return res.status(400).json({
-        error: errorHandler.getErrorMessage(err)
-      })
-    }  
-}
-
-const removeFollowing = async (req, res, next) => {
-  try{
-    await User.findByIdAndUpdate(req.body.userId, {$pull: {following: req.body.unfollowId}}) 
-    next()
-  }catch(err) {
-    return res.status(400).json({
-      error: errorHandler.getErrorMessage(err)
-    })
-  }
-}
-const removeFollower = async (req, res) => {
-  try{
-    let result = await User.findByIdAndUpdate(req.body.unfollowId, {$pull: {followers: req.body.userId}}, {new: true})
-                            .populate('following', '_id name')
-                            .populate('followers', '_id name')
-                            .exec() 
-    result.hashed_password = undefined
-    result.salt = undefined
-    res.json(result)
-  }catch(err){
-      return res.status(400).json({
-        error: errorHandler.getErrorMessage(err)
-      })
-  }
-}
-
-const findPeople = async (req, res) => {
-  let following = req.profile.following
-  following.push(req.profile._id)
-  try {
-    let users = await User.find({ _id: { $nin : following } }).select('name')
-    res.json(users)
-  }catch(err){
-    return res.status(400).json({
-      error: errorHandler.getErrorMessage(err)
-    })
-  }
+/**
+ * Default profile photo (no client import!)
+ * Serve a tiny inline SVG placeholder.
+ */
+const defaultPhoto = (_req, res) => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128">
+    <rect width="100%" height="100%" fill="#e0e0e0"/>
+    <circle cx="64" cy="48" r="24" fill="#bdbdbd"/>
+    <rect x="28" y="82" width="72" height="34" rx="16" fill="#bdbdbd"/>
+  </svg>`
+  res.set('Content-Type', 'image/svg+xml')
+  res.status(200).send(svg)
 }
 
 export default {
@@ -185,11 +106,5 @@ export default {
   list,
   remove,
   update,
-  photo,
-  defaultPhoto,
-  addFollowing,
-  addFollower,
-  removeFollowing,
-  removeFollower,
-  findPeople
+  defaultPhoto
 }

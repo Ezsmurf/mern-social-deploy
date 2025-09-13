@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  namespace: mern
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: server }
+  template:
+    metadata:
+      labels: { app: server }
+    spec:
+      containers:
+        - name: server
+          image: mern-social-server:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{containerPort: 4000}]
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "4000"
+            - name: MONGODB_URI
+              value: "mongodb://mongo:27017/mernsocial"
+            - name: JWT_SECRET
+              value: "change-me-for-prod"
+            - name: NODE_OPTIONS
+              value: "--experimental-specifier-resolution=node"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  namespace: mern
+spec:
+  selector: { app: server }
+  ports:
+    - port: 4000
+      targetPort: 4000
+  type: ClusterIP

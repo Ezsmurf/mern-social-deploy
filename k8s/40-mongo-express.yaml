@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-express
+  namespace: mern
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mongo-express }
+  template:
+    metadata:
+      labels: { app: mongo-express }
+    spec:
+      containers:
+        - name: mongo-express
+          image: mongo-express:1.0.2
+          ports: [{containerPort: 8081}]
+          env:
+            - name: ME_CONFIG_MONGODB_URL
+              value: "mongodb://mongo:27017/mernsocial"
+            - name: ME_CONFIG_BASICAUTH_USERNAME
+              value: "admin"
+            - name: ME_CONFIG_BASICAUTH_PASSWORD
+              value: "admin"
+            - name: ME_CONFIG_SITE_BASEURL
+              value: "/db"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-express
+  namespace: mern
+spec:
+  selector: { app: mongo-express }
+  ports:
+    - port: 8081
+      targetPort: 8081
+  type: ClusterIP
