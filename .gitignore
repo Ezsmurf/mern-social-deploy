@@ -1,4 +1,7 @@
-/node_modules/
-/dist/
-/data/
-npm-debug.log
+.env
+certs/
+k8s/*.pem
+node_modules/
+dist/
+*.log
+.DS_Store
