@@ -1,31 +1,28 @@
-# Build the production client bundle
+# ----------------------
+# Build client bundle
+# ----------------------
 FROM node:18-alpine AS build
-RUN apk add --no-cache python3 make g++
 WORKDIR /app
 
-# Ignore "engines" pin from package.json
-ENV npm_config_engine_strict=false
-# Optional safety for older webpack + Node 18
-ENV NODE_OPTIONS=--openssl-legacy-provider
-
 # Install root dependencies
-COPY package.json ./
+COPY package.json package-lock.json* yarn.lock* ./
 RUN npm install
 
-#  Ensure JSX transforms are available
+# Ensure Babel presets are present
 RUN npm install --no-save @babel/preset-env @babel/preset-react
 COPY .babelrc ./
-
-#  Provide a minimal babel config
 RUN printf '{\n  "presets": ["@babel/preset-env", "@babel/preset-react"]\n}\n' > .babelrc
 
-# Copy  what the client build needs
+# Copy client sources and webpack config
 COPY client ./client
 COPY webpack.config.client.js webpack.config.client.production.cjs template.js ./
 
-# Build the client
+# Build client bundle
+ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN npx webpack --config webpack.config.client.production.cjs
 
-# Serve the  files
+# ----------------------
+# Serve via nginx
+# ----------------------
 FROM nginx:1.25-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
