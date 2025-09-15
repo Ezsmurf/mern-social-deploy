@@ -13,9 +13,9 @@ spec:
     spec:
       containers:
         - name: server
-          image: mern-social-server:latest
+          image: mern-social-server:latest   # or your-registry/mern-social-server:latest
           imagePullPolicy: IfNotPresent
-          ports: [{containerPort: 4000}]
+          ports: [{ containerPort: 4000 }]
           env:
             - name: NODE_ENV
               value: "production"
@@ -26,7 +26,7 @@ spec:
             - name: JWT_SECRET
               value: "change-me-for-prod"
             - name: NODE_OPTIONS
-              value: "--experimental-specifier-resolution=node"
+              value: "--experimental-specifier-resolution=node --openssl-legacy-provider"
 ---
 apiVersion: v1
 kind: Service

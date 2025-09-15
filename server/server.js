@@ -1,4 +1,4 @@
-// Enable JSX/ESNext
+// server/server.js
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 require('@babel/register')({
@@ -13,26 +13,18 @@ import app from './express.js'
 
 dotenv.config()
 
-// MongoDB connection
 mongoose.Promise = global.Promise
-const mongoUri = process.env.MONGO_URI || `mongodb://mongo:27017/${process.env.MONGODB_DB || 'mernsocial'}`
+const mongoUri =
+  process.env.MONGODB_URI ||
+  process.env.MONGO_URI ||
+  `mongodb://mongo:27017/${process.env.MONGODB_DB || 'mernsocial'}`
 
-mongoose.connect(mongoUri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => {
-    console.log(' Connected to MongoDB at', mongoUri)
-  })
-  .catch((err) => {
-    console.error(' MongoDB connection error:', err)
-  })
+mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log(' Connected to MongoDB at', mongoUri))
+  .catch((err) => console.error(' MongoDB connection error:', err))
 
-// Start server
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 4000
 app.listen(PORT, (err) => {
-  if (err) {
-    console.error(' Failed to start server:', err)
-  }
+  if (err) console.error(' Failed to start server:', err)
   console.info(` Server running at http://localhost:${PORT}/`)
 })

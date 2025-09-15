@@ -1,15 +1,17 @@
 {
   "presets": [
-    ["@babel/preset-env",
-      {
-        "targets": {
-          "node": "current"
-        }
-      }
+    [
+      "@babel/preset-env",
+      { "targets": { "browsers": [">0.25%", "not dead"] } }
     ],
     "@babel/preset-react"
   ],
   "plugins": [
-    "react-hot-loader/babel"
-  ]
+    ["@babel/plugin-transform-runtime", { "regenerator": true }]
+  ],
+  "env": {
+    "development": {
+      "plugins": ["react-hot-loader/babel"]
+    }
+  }
 }

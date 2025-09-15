@@ -1,39 +1,43 @@
+// server/express.js
 import express from 'express'
 import bodyParser from 'body-parser'
 import cookieParser from 'cookie-parser'
 import compress from 'compression'
 import cors from 'cors'
 import helmet from 'helmet'
-import mongoose from 'mongoose'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
+// Routes & HTML template
+import userRoutes from './routes/user.routes.js'
+import Template from '../template.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
+
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(cookieParser())
 app.use(compress())
-app.use(helmet())
 app.use(cors())
 
-const mongoUri = process.env.MONGODB_URI || 'mongodb://mongo:27017/mern-social'
-// mongoose.set('strictQuery', true) # removed for Mongoose 7+
-mongoose.connect(mongoUri, {
-  serverSelectionTimeoutMS: 5000,
-  dbName: process.env.MONGODB_DB || 'mern-social'
-}).then(() => {
-  console.log('[mongo] connected to', mongoose.connection.host)
-}).catch(err => {
-  console.error('[mongo] initial connect error:', err?.message || err)
+// Allow the client bundle to load (tighten later if you want strict CSP)
+app.use(helmet({ contentSecurityPolicy: false }))
+
+// Serve the built client (webpack output)
+app.use('/dist', express.static(path.join(__dirname, '../dist')))
+
+// API routes
+app.use('/', userRoutes)
+
+// Health check
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ ok: true, service: 'api' })
 })
 
-app.get('/api/health', (_req, res) => {
-  const rs = mongoose?.connection?.readyState ?? 0
-  const mongo = rs === 1 ? 'up' : 'down'
-  res.status(200).json({
-    ok: true,
-    service: 'api',
-    mongo,
-    details: { readyState: rs }
-  })
+// Send HTML shell; React mounts/hydrates on the client
+app.get('*', (_req, res) => {
+  res.status(200).send(Template({ markup: '', css: '' }))
 })
 
 export default app

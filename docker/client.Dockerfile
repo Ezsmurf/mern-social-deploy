@@ -14,6 +14,7 @@ RUN npm install
 
 #  Ensure JSX transforms are available
 RUN npm install --no-save @babel/preset-env @babel/preset-react
+COPY .babelrc ./
 
 #  Provide a minimal babel config
 RUN printf '{\n  "presets": ["@babel/preset-env", "@babel/preset-react"]\n}\n' > .babelrc
@@ -28,6 +29,3 @@ RUN npx webpack --config webpack.config.client.production.cjs
 # Serve the  files
 FROM nginx:1.25-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
-
-# Simple homepage to replace default Nginx homepage
-COPY client/index.html /usr/share/nginx/html/index.html

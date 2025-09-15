@@ -4,20 +4,18 @@ metadata:
   name: mern-ingress
   namespace: mern
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"   # set true after TLS works
 spec:
-  tls:
-    - secretName: mern-tls
   rules:
     - http:
         paths:
-          - path: /
+          - path: /            # React app + static /dist
             pathType: Prefix
             backend:
               service:
-                name: client
+                name: server
                 port:
-                  number: 80
+                  number: 4000
           - path: /api
             pathType: Prefix
             backend:
