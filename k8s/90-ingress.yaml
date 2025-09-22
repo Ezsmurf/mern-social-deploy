@@ -4,12 +4,13 @@ metadata:
   name: mern-ingress
   namespace: mern
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"   # set true after TLS works
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
+  ingressClassName: nginx
   rules:
     - http:
         paths:
-          - path: /            # React app + static /dist
+          - path: /
             pathType: Prefix
             backend:
               service:
